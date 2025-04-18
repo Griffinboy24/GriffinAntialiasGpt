@@ -51,7 +51,8 @@ namespace project
             pitchBits(0),
             realLen(0),
             padLen(0),
-            sampleLength(0)
+            sampleLength(0),
+            cycleLen(0)
         {
         }
 
@@ -61,9 +62,10 @@ namespace project
             constexpr int frameLen = 2048;
             constexpr int padCycles = 4;
 
-            realLen = frames * frameLen;    // actual loop length
-            padLen = padCycles * frameLen; // FIR context
-            sampleLength = padLen + realLen;     // total buffer
+            cycleLen = frameLen;            // single-cycle length
+            realLen = frames * frameLen;   // full buffer length
+            padLen = padCycles * frameLen;// FIR context
+            sampleLength = padLen + realLen;   // total buffer
 
             sampleBuffer.resize(sampleLength);
 
@@ -108,7 +110,7 @@ namespace project
                 realLen * sizeof(float)
             );
 
-            // initialize mip?map and resampler on full buffer
+            // initialize mipmap and resampler on full buffer
             mipMap.init_sample(
                 sampleLength,
                 rspl::InterpPack::get_len_pre(),
@@ -131,7 +133,6 @@ namespace project
             ready = true;
         }
 
-
         void reset()
         {
             resampler.clear_buffers();
@@ -153,13 +154,12 @@ namespace project
             rspl::Int64 intPos = pos >> 32;
             rspl::Int64 frac = pos & 0xFFFFFFFF;
 
-            // wrap *only* over realLen, offset by padLen
+            // wrap only over one cycle
             rspl::Int64 rel = intPos - padLen;
-            rspl::Int64 wrapped = rel & (realLen - 1);
+            rspl::Int64 wrapped = rel & (cycleLen - 1);
             rspl::Int64 newInt = padLen + wrapped;
 
             resampler.set_playback_pos((newInt << 32) | frac);
-
             resampler.interpolate_block(L, n);
 
             FloatVectorOperations::multiply(L, L, volume, n);
@@ -221,6 +221,7 @@ namespace project
         float              volume;
         long               pitchBits;
         int                realLen, padLen, sampleLength;
+        int                cycleLen;         // single-cycle length
         rspl::InterpPack   interpPack;
         rspl::MipMapFlt    mipMap;
         rspl::ResamplerFlt resampler;
