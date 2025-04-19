@@ -149,18 +149,10 @@ namespace project
             float* R = blk.getChannelPointer(1);
             int    n = d.getNumSamples();
 
-            // fetch current pos
-            rspl::Int64 pos = resampler.get_playback_pos();
-            rspl::Int64 intPos = pos >> 32;
-            rspl::Int64 frac = pos & 0xFFFFFFFF;
-
-            // wrap only over one cycle
-            rspl::Int64 rel = intPos - padLen;
-            rspl::Int64 wrapped = rel & (cycleLen - 1);
-            rspl::Int64 newInt = padLen + wrapped;
-
-            resampler.set_playback_pos((newInt << 32) | frac);
-            resampler.interpolate_block(L, n);
+            for (int i = 0; i < n; ++i)
+            {
+                L[i] = resampler.interpolate_sample();
+            }
 
             FloatVectorOperations::multiply(L, L, volume, n);
             FloatVectorOperations::copy(R, L, n);
