@@ -92,6 +92,7 @@ public:
 	static const double
 						_fir_mip_map_coef_arr [MIP_MAP_FIR_LEN];
 
+    float interpolate_sample(); // P1dda
 
 
 /*\\\ PROTECTED \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\*/

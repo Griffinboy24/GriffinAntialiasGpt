@@ -289,35 +289,54 @@ void	ResamplerFlt::interpolate_block (float dest_ptr [], long nbr_spl)
 		else if (_voice_arr [VoiceInfo_CURRENT]._ovrspl_flag)
 		{
 			work_len = min (work_len, _buf_len);
-			_interp_ptr->interp_ovrspl (
-				&_buf [0],
-				work_len * 2,
-				_voice_arr [VoiceInfo_CURRENT]
-			);
-			_dwnspl.downsample_block (
-				&dest_ptr [block_pos],
-				&_buf [0],
-				work_len
-			);
+			for (long i = 0; i < work_len; ++i)
+			{
+				dest_ptr[block_pos + i] = interpolate_sample();
+			}
 		}
 
 		// No oversampling
 		else
 		{
-			_interp_ptr->interp_norm (
-				&dest_ptr [block_pos],
-				work_len,
-				_voice_arr [VoiceInfo_CURRENT]
-			);
-			_dwnspl.phase_block (
-				&dest_ptr [block_pos],
-				&dest_ptr [block_pos],
-				work_len
-			);
+			for (long i = 0; i < work_len; ++i)
+			{
+				dest_ptr[block_pos + i] = interpolate_sample();
+			}
 		}
 
 		block_pos += work_len;
 	}
+}
+
+float ResamplerFlt::interpolate_sample()
+{
+	BaseVoiceState &cur_voc = _voice_arr[VoiceInfo_CURRENT];
+	float sample = 0.0f;
+
+	if (cur_voc._ovrspl_flag)
+	{
+		float buf[2];
+		_interp_ptr->interp_ovrspl(buf, 2, cur_voc);
+		_dwnspl.downsample_block(&sample, buf, 1);
+	}
+	else
+	{
+		_interp_ptr->interp_norm(&sample, 1, cur_voc);
+		_dwnspl.phase_block(&sample, &sample, 1);
+	}
+
+	// Update playback position
+	cur_voc._pos._all += cur_voc._step._all;
+
+	// Check for loop
+	rspl::Int64 intPos = cur_voc._pos._all >> 32;
+	rspl::Int64 frac = cur_voc._pos._all & 0xFFFFFFFF;
+	rspl::Int64 rel = intPos - _mip_map_ptr->get_sample_len();
+	rspl::Int64 wrapped = rel & (_mip_map_ptr->get_sample_len() - 1);
+	rspl::Int64 newInt = _mip_map_ptr->get_sample_len() + wrapped;
+	cur_voc._pos._all = (newInt << 32) | frac;
+
+	return sample;
 }
 
 
